@@ -3,6 +3,8 @@ import { SlidersHorizontal, List } from '@lucide/vue'
 
 defineProps<{
   showList: boolean
+  showFilters: boolean
+  isMobile: boolean
 }>()
 
 defineEmits<{
@@ -12,11 +14,11 @@ defineEmits<{
 </script>
 
 <template>
-  <header class="navbar">
+  <header v-if="!isMobile" class="navbar">
     <div class="navbar-left">
       <div class="logo">
-       <img width="32" src="../assets/azs_logo.png" alt="логотип">
-        <span class="logo-text"> Карта наличия топлива на АЗС в городском округе Череповец</span>
+        <img width="32" src="../assets/azs_logo.png" alt="логотип">
+        <span class="logo-text">Карта наличия топлива на АЗС в городском округе Череповец</span>
       </div>
     </div>
 
@@ -24,11 +26,22 @@ defineEmits<{
       <button :class="['icon-btn', { active: showList }]" title="Список" @click="$emit('list')">
         <List :size="18" />
       </button>
-      <button class="icon-btn" title="Фильтры" @click="$emit('filter')">
+      <button :class="['icon-btn', { active: showFilters }]" title="Фильтры" @click="$emit('filter')">
         <SlidersHorizontal :size="18" />
       </button>
     </div>
   </header>
+
+  <nav v-if="isMobile" class="bottom-nav">
+    <button :class="['nav-btn', { active: showList }]" @click="$emit('list')">
+      <List :size="20" />
+      <span>Список</span>
+    </button>
+    <button :class="['nav-btn', { active: showFilters }]" @click="$emit('filter')">
+      <SlidersHorizontal :size="20" />
+      <span>Фильтр</span>
+    </button>
+  </nav>
 </template>
 
 <style scoped lang="scss">
@@ -47,6 +60,7 @@ defineEmits<{
 
 .navbar-left {
   flex-shrink: 0;
+  min-width: 0;
 }
 
 .logo {
@@ -55,22 +69,16 @@ defineEmits<{
   gap: 10px;
 }
 
-.logo-icon {
-  width: 36px;
-  height: 36px;
-  background: linear-gradient(135deg, var(--blue), var(--blue-dark));
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-}
-
 .logo-text {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--gray-900);
   letter-spacing: -0.3px;
+  white-space: nowrap;
+
+  @media (min-width: 1024px) {
+    font-size: 18px;
+  }
 }
 
 .navbar-right {
@@ -106,6 +114,43 @@ defineEmits<{
     background: var(--blue);
     color: white;
     border-color: var(--blue);
+  }
+}
+
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  height: 60px;
+  background: var(--white);
+  border-top: 1px solid var(--gray-200);
+  z-index: 50;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.nav-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 16px;
+  border: none;
+  background: none;
+  color: var(--gray-500);
+  font-size: 11px;
+  font-weight: 500;
+  transition: all var(--transition);
+
+  &.active {
+    color: var(--blue);
+  }
+
+  &:active {
+    transform: scale(0.95);
   }
 }
 </style>

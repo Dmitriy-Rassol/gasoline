@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { Search, MapPin, Fuel, X } from '@lucide/vue'
-import { FUEL_LABELS, getFuelStatus, STATUS_COLORS, STATUS_BG } from '../types/station'
+import { FUEL_LABELS } from '../types/station'
 import type { GasStation, FuelType } from '../types/station'
 
 const props = defineProps<{
   stations: GasStation[]
   selectedId: number | null
+  isMobile: boolean
 }>()
 
 const emit = defineEmits<{
@@ -26,19 +27,68 @@ const filtered = computed(() => {
   )
 })
 
-const getBadgeStyle = (station: GasStation, key: FuelType) => {
-  const val = station.fuel[key] ?? 0
-  const status = getFuelStatus(val, key)
-  return {
-    background: STATUS_BG[status],
-    color: STATUS_COLORS[status],
+const touchStartY = ref(0)
+const touchDeltaY = ref(0)
+const isDragging = ref(false)
+const isClosing = ref(false)
+
+const isFuelAvailable = (station: GasStation, key: FuelType) => {
+  return (station.fuel[key] ?? 0) > 0
+}
+
+const onTouchStart = (e: TouchEvent) => {
+  touchStartY.value = e.touches[0].clientY
+  touchDeltaY.value = 0
+  isDragging.value = true
+}
+
+const onTouchMove = (e: TouchEvent) => {
+  if (!isDragging.value) return
+  touchDeltaY.value = Math.max(0, e.touches[0].clientY - touchStartY.value)
+}
+
+const onTouchEnd = () => {
+  isDragging.value = false
+  if (touchDeltaY.value > 100) {
+    isClosing.value = true
+    touchDeltaY.value = window.innerHeight
+    setTimeout(() => {
+      emit('close')
+      isClosing.value = false
+      touchDeltaY.value = 0
+    }, 350)
+  } else {
+    touchDeltaY.value = 0
   }
 }
+
+const listStyle = computed(() => {
+  if (!props.isMobile) return {}
+  if (isClosing.value) {
+    return {
+      transform: `translateY(${touchDeltaY.value}px)`,
+      transition: 'transform 0.3s ease',
+    }
+  }
+  if (isDragging.value) {
+    return {
+      transform: `translateY(${touchDeltaY.value}px)`,
+      transition: 'none',
+    }
+  }
+  return {}
+})
 </script>
 
 <template>
-  <aside class="sidebar">
-    <div class="sidebar-header">
+  <aside :class="['sidebar', { 'sidebar--mobile': isMobile }]" :style="listStyle">
+    <div
+      class="sidebar-header"
+      @touchstart.passive="onTouchStart"
+      @touchmove.passive="onTouchMove"
+      @touchend="onTouchEnd"
+    >
+      <div v-if="isMobile" class="mobile-handle"></div>
       <h2 class="sidebar-title">АЗС Череповца</h2>
       <button class="close-btn" @click="emit('close')">
         <X :size="18" />
@@ -79,8 +129,7 @@ const getBadgeStyle = (station: GasStation, key: FuelType) => {
               v-for="key in fuelKeys"
               :key="key"
               v-show="station.hasFuel"
-              class="fuel-badge"
-              :style="getBadgeStyle(station, key)"
+              :class="['fuel-badge', { available: isFuelAvailable(station, key) }]"
             >
               {{ FUEL_LABELS[key] }}
             </span>
@@ -101,8 +150,8 @@ const getBadgeStyle = (station: GasStation, key: FuelType) => {
   top: 0;
   left: 0;
   bottom: 0;
-  width: 340px;
-  background: rgba(255, 255, 255, 0.96);
+  width: 320px;
+  background: rgba(255, 255, 255, 0.98);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border-right: 1px solid var(--gray-200);
@@ -110,34 +159,67 @@ const getBadgeStyle = (station: GasStation, key: FuelType) => {
   display: flex;
   flex-direction: column;
   animation: slideIn 0.25s ease;
+
+  @media (min-width: 768px) {
+    width: 340px;
+  }
+
+  &--mobile {
+    position: fixed;
+    top: 10vh;
+    left: 0;
+    right: 0;
+    bottom: 60px;
+    width: 100%;
+    height: auto;
+    border-radius: 20px 20px 0 0;
+    border-right: none;
+    animation: slideUp 0.3s ease;
+    z-index: 40;
+    transition: transform 0.3s ease;
+  }
 }
 
 @keyframes slideIn {
-  from {
-    transform: translateX(-100%);
-  }
-  to {
-    transform: translateX(0);
-  }
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
 }
 
 .sidebar-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 16px 12px;
+  padding: 16px;
   flex-shrink: 0;
+  position: relative;
+  touch-action: none;
+}
+
+.mobile-handle {
+  width: 40px;
+  height: 4px;
+  background: var(--gray-300);
+  border-radius: 2px;
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
 }
 
 .sidebar-title {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--gray-900);
 }
 
 .close-btn {
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   border: none;
   background: var(--gray-100);
   border-radius: 8px;
@@ -158,7 +240,7 @@ const getBadgeStyle = (station: GasStation, key: FuelType) => {
   align-items: center;
   gap: 8px;
   margin: 0 16px 12px;
-  padding: 8px 12px;
+  padding: 10px 12px;
   background: var(--gray-50);
   border: 1px solid var(--gray-200);
   border-radius: 10px;
@@ -181,7 +263,7 @@ const getBadgeStyle = (station: GasStation, key: FuelType) => {
   border: none;
   outline: none;
   background: transparent;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--gray-800);
 
   &::placeholder {
@@ -193,6 +275,7 @@ const getBadgeStyle = (station: GasStation, key: FuelType) => {
   flex: 1;
   overflow-y: auto;
   padding: 0 8px 8px;
+  -webkit-overflow-scrolling: touch;
 
   &::-webkit-scrollbar {
     width: 4px;
@@ -211,12 +294,12 @@ const getBadgeStyle = (station: GasStation, key: FuelType) => {
 .station-item {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
+  gap: 12px;
   width: 100%;
-  padding: 10px 10px;
+  padding: 12px;
   border: none;
   background: transparent;
-  border-radius: 10px;
+  border-radius: 12px;
   text-align: left;
   transition: all var(--transition);
   cursor: pointer;
@@ -236,10 +319,10 @@ const getBadgeStyle = (station: GasStation, key: FuelType) => {
 }
 
 .station-icon {
-  width: 32px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
   background: var(--gray-100);
-  border-radius: 8px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -255,20 +338,17 @@ const getBadgeStyle = (station: GasStation, key: FuelType) => {
 
 .station-name {
   display: block;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--gray-900);
   margin-bottom: 2px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .station-address {
   display: flex;
   align-items: center;
   gap: 3px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--gray-500);
   margin-bottom: 6px;
 }
@@ -282,8 +362,15 @@ const getBadgeStyle = (station: GasStation, key: FuelType) => {
 .fuel-badge {
   font-size: 10px;
   font-weight: 600;
-  padding: 2px 6px;
-  border-radius: 4px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: #FEF2F2;
+  color: #EF4444;
+
+  &.available {
+    background: #F0FDF4;
+    color: #22C55E;
+  }
 
   &.no-fuel {
     background: #FEF2F2;
@@ -293,8 +380,8 @@ const getBadgeStyle = (station: GasStation, key: FuelType) => {
 
 .empty {
   text-align: center;
-  padding: 32px 16px;
+  padding: 40px 16px;
   color: var(--gray-400);
-  font-size: 13px;
+  font-size: 14px;
 }
 </style>

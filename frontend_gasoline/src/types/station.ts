@@ -5,15 +5,23 @@ export interface FuelData {
   diesel?: number
 }
 
+export interface Comment {
+  text: string
+  time: string
+}
+
 export interface GasStation {
   id: number
   name: string
   brand: string
+  image: string
   address: string
   coordinates: [number, number]
   fuel: FuelData
   nextDelivery: string
   hasFuel: boolean
+  lastComment: string
+  comments: Comment[]
 }
 
 export type FuelType = keyof FuelData
@@ -37,7 +45,7 @@ export type FuelStatus = 'full' | 'medium' | 'low' | 'empty'
 export const getFuelStatus = (val: number, key: FuelType): FuelStatus => {
   if (val === 0) return 'empty'
   const pct = (val / FUEL_MAX[key]) * 100
-  if (pct > 60) return 'full'
+  if (pct > 50) return 'full'
   if (pct > 30) return 'medium'
   return 'low'
 }

@@ -1,24 +1,39 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { shallowRef, ref, computed } from 'vue'
 import {
   YandexMap,
   YandexMapDefaultSchemeLayer,
   YandexMapDefaultFeaturesLayer,
   YandexMapMarker,
   YandexMapControls,
-  YandexMapControl,
-  YandexMapControlButton,
   YandexMapZoomControl,
   YandexMapListener,
 } from 'vue-yandex-maps'
-import { Navigation } from '@lucide/vue';
+import { Fuel, X, MapPin } from '@lucide/vue'
 
 import type { GasStation, FuelType } from '../types/station'
-import { FUEL_LABELS, FUEL_MAX, getFuelStatus, STATUS_COLORS } from '../types/station'
+import { FUEL_LABELS } from '../types/station'
+
+import lukoilLogo from '../assets/lukoil.webp'
+import gazpromLogo from '../assets/gazprom.webp'
+import tatneftLogo from '../assets/tatneft.webp'
+import teboilLogo from '../assets/teboil.webp'
+import enticomLogo from '../assets/enticom.webp'
+
+const brandLogos: Record<string, string> = {
+  lukoil: lukoilLogo,
+  gazprom: gazpromLogo,
+  tatneft: tatneftLogo,
+  teboil: teboilLogo,
+  enticom: enticomLogo,
+}
+
+const getBrandLogo = (brand: string) => brandLogos[brand] || ''
 
 const props = defineProps<{
   stations: GasStation[]
   selectedId: number | null
+  isMobile: boolean
 }>()
 
 const emit = defineEmits<{
@@ -26,7 +41,12 @@ const emit = defineEmits<{
   (e: 'deselect'): void
 }>()
 
-const mapRef = ref<any>(null)
+const selectedStation = computed(() => {
+  if (props.selectedId === null) return null
+  return props.stations.find(s => s.id === props.selectedId) || null
+})
+
+const map = shallowRef<any>(null)
 
 const CENTER = [37.9094, 59.1319] as [number, number]
 const ZOOM = 12
@@ -39,118 +59,208 @@ const getStationColor = (s: GasStation): string => {
   return s.hasFuel ? '#22C55E' : '#EF4444'
 }
 
-const buildSvg = (color: string, selected: boolean) => {
-  const fill = selected ? '#2563EB' : color
-  const shadow = selected ? 'rgba(37,99,235,0.5)' : 'rgba(0,0,0,0.25)'
-  return `data:image/svg+xml,${encodeURIComponent(`<svg width="28" height="36" viewBox="0 0 28 36" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><filter id="d" x="-3" y="0" width="34" height="40" filterUnits="userSpaceOnUse"><feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="${shadow}" flood-opacity="0.5"/></filter></defs><path d="M14 0C6.268 0 0 6.268 0 14c0 10.5 14 22 14 22s14-11.5 14-22C28 6.268 21.732 0 14 0z" fill="${fill}" filter="url(#d)"/><circle cx="14" cy="13" r="6" fill="white" opacity="0.15"/><text x="14" y="16.5" text-anchor="middle" font-size="11" fill="white">⛽</text></svg>`)}`
-}
+let markerJustClicked = false
 
 const selectStation = (station: GasStation) => {
+  markerJustClicked = true
   emit('select', station)
+  moveToStation(station)
+  setTimeout(() => { markerJustClicked = false }, 100)
 }
 
 const deselectAll = () => {
+  if (markerJustClicked) return
   emit('deselect')
 }
 
-const geolocate = () => {
-  if (!navigator.geolocation || !mapRef.value) return
-  navigator.geolocation.getCurrentPosition((pos) => {
-    const coords = [pos.coords.longitude, pos.coords.latitude] as [number, number]
-    mapRef.value.setLocation({ center: coords, zoom: 14, duration: 300 })
-  })
+const moveToStation = (station: GasStation) => {
+  if (!map.value) return
+  const coords = toLngLat(station.coordinates)
+  map.value.setLocation({ center: coords, zoom: 15, duration: 500 })
 }
+
+const resetZoom = () => {
+  if (!map.value) return
+  map.value.setLocation({ center: CENTER, zoom: ZOOM, duration: 500 })
+}
+
+const touchStartY = ref(0)
+const touchDeltaY = ref(0)
+const isDragging = ref(false)
+const isClosing = ref(false)
+
+const onTouchStart = (e: TouchEvent) => {
+  touchStartY.value = e.touches[0].clientY
+  touchDeltaY.value = 0
+  isDragging.value = true
+}
+
+const onTouchMove = (e: TouchEvent) => {
+  if (!isDragging.value) return
+  touchDeltaY.value = Math.max(0, e.touches[0].clientY - touchStartY.value)
+}
+
+const onTouchEnd = () => {
+  isDragging.value = false
+  if (touchDeltaY.value > 100) {
+    isClosing.value = true
+    touchDeltaY.value = window.innerHeight
+    setTimeout(() => {
+      emit('deselect')
+      isClosing.value = false
+      touchDeltaY.value = 0
+    }, 350)
+  } else {
+    touchDeltaY.value = 0
+  }
+}
+
+const sheetStyle = computed(() => {
+  if (isClosing.value) {
+    return {
+      transform: `translateY(${touchDeltaY.value}px)`,
+      transition: 'transform 0.3s ease',
+    }
+  }
+  if (isDragging.value) {
+    return {
+      transform: `translateY(${touchDeltaY.value}px)`,
+      transition: 'none',
+    }
+  }
+  return {}
+})
+
+defineExpose({ moveToStation, resetZoom })
 </script>
 
 <template>
-  <yandex-map
-    ref="mapRef"
-    :settings="{
-      location: {
-        center: CENTER,
-        zoom: ZOOM,
-      },
-      showScaleInCopyrights: true,
-    }"
-    width="100%"
-    height="100%"
-  >
+  <yandex-map v-model="map" :settings="{
+    location: {
+      center: CENTER,
+      zoom: ZOOM,
+    },
+    showScaleInCopyrights: true,
+  }" width="100%" height="100%">
     <yandex-map-default-scheme-layer />
     <yandex-map-default-features-layer />
 
-    <yandex-map-controls :settings="{ position: 'right' }">
+    <yandex-map-controls :settings="{ position: 'right top', orientation: 'vertical' }">
       <yandex-map-zoom-control />
-      <yandex-map-control>
-        <yandex-map-control-button :settings="{ onClick: geolocate }">
-          <div class="geo-btn">
-              <Navigation :size="20"/>
-          </div>
-        </yandex-map-control-button>
-      </yandex-map-control>
     </yandex-map-controls>
 
     <yandex-map-listener :settings="{ onClick: deselectAll }" />
 
-    <yandex-map-marker
-      v-for="station in stations"
-      :key="station.id"
-      :settings="{
-        coordinates: toLngLat(station.coordinates),
-        onClick: () => selectStation(station),
-        zIndex: station.id === selectedId ? 1 : 0,
-      }"
-      position="top left-center"
-    >
+    <yandex-map-marker v-for="station in stations" :key="station.id" :settings="{
+      coordinates: toLngLat(station.coordinates),
+      onClick: () => selectStation(station),
+      zIndex: station.id === selectedId ? 1 : 0,
+    }" position="top left-center">
       <div class="marker-wrapper">
-        <img
-          :src="buildSvg(getStationColor(station), station.id === selectedId)"
-          :width="28"
-          :height="36"
-          class="marker-img"
-        />
-        <div
-          v-if="station.id === selectedId"
-          class="marker-popup"
-        >
+        <div :class="['marker-circle', { selected: station.id === selectedId }]"
+          :style="{ background: getStationColor(station) }">
+          <Fuel :size="14" color="white" />
+        </div>
+        <div v-if="station.id === selectedId && !isMobile" class="marker-popup" @wheel.stop>
+          <button class="popup-close" @click.stop="deselectAll">
+            <X :size="16" />
+          </button>
           <div class="popup-header">
-            <div class="popup-icon">⛽</div>
+            <div v-if="station.image" class="popup-icon"><img width="48" :src="getBrandLogo(station.image)"
+                :alt="station.name"></div>
+            <div v-else class="popup-icon">
+              <Fuel :size="32" />
+            </div>
             <div>
               <div class="popup-name">{{ station.name }}</div>
               <div class="popup-addr">{{ station.address }}</div>
+              <div :class="['popup-status', { available: station.hasFuel, empty: !station.hasFuel }]">
+                {{ station.hasFuel ? 'Есть топливо' : 'Нет топлива' }}
+              </div>
             </div>
           </div>
           <div class="popup-fuel">
-            <div v-if="!station.hasFuel" class="popup-no-fuel">
-              Топливо отсутствует
-            </div>
-            <div
-              v-for="key in fuelKeys"
-              :key="key"
-              v-show="station.hasFuel && station.fuel[key] !== undefined"
-              class="popup-fuel-item"
-            >
-              <div class="popup-fuel-head">
-                <span class="fuel-label">{{ FUEL_LABELS[key] }}</span>
-                <span class="fuel-val">{{ (station.fuel[key] ?? 0).toLocaleString('ru-RU') }} л</span>
-              </div>
-              <div class="fuel-bar-track">
-                <div
-                  class="fuel-bar-fill"
-                  :style="{
-                    width: Math.min(100, Math.round(((station.fuel[key] ?? 0) / FUEL_MAX[key]) * 100)) + '%',
-                    background: STATUS_COLORS[getFuelStatus(station.fuel[key] ?? 0, key)],
-                  }"
-                ></div>
-              </div>
+            <div v-for="key in fuelKeys" :key="key"
+              :class="['popup-fuel-row', { available: (station.fuel[key] ?? 0) > 0, empty: (station.fuel[key] ?? 0) === 0 }]">
+              <span class="fuel-label">{{ FUEL_LABELS[key] }}</span>
+              <span class="fuel-val">{{ (station.fuel[key] ?? 0).toLocaleString('ru-RU') }} л</span>
             </div>
           </div>
-          <div class="popup-delivery">
-            🚚 Следующая поставка: <strong>{{ station.nextDelivery }}</strong>
+          <div class="popup-comment">
+            <div class="comment-label">Последний комментарий</div>
+            <div class="comment-text">{{ station.lastComment }}</div>
+          </div>
+          <div class="popup-history">
+            <div class="history-label">История</div>
+            <div class="history-list">
+              <div v-for="(comment, idx) in station.comments" :key="idx" class="history-item">
+                <span class="history-time">{{ comment.time }}</span>
+                <span class="history-text">{{ comment.text }}</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </yandex-map-marker>
   </yandex-map>
+
+  <Transition name="slide-up">
+    <div v-if="selectedStation && isMobile" class="mobile-sheet" :style="sheetStyle">
+      <div
+        class="sheet-handle"
+        @touchstart.passive="onTouchStart"
+        @touchmove.passive="onTouchMove"
+        @touchend="onTouchEnd"
+      >
+        <div class="handle-bar"></div>
+      </div>
+      <div class="sheet-header">
+        <div v-if="selectedStation.image" class="sheet-icon">
+          <img width="40" :src="getBrandLogo(selectedStation.image)" :alt="selectedStation.name">
+        </div>
+        <div v-else class="sheet-icon">
+          <Fuel :size="24" />
+        </div>
+        <div class="sheet-info">
+          <div class="sheet-name">{{ selectedStation.name }}</div>
+          <div class="sheet-addr">
+            <MapPin :size="12" />
+            {{ selectedStation.address }}
+          </div>
+        </div>
+        <button class="sheet-close" @click="emit('deselect')">
+          <X :size="18" />
+        </button>
+      </div>
+
+      <div :class="['sheet-status', { available: selectedStation.hasFuel, empty: !selectedStation.hasFuel }]">
+        {{ selectedStation.hasFuel ? 'Есть топливо' : 'Нет топлива' }}
+      </div>
+
+      <div class="sheet-content">
+        <div class="sheet-fuel">
+          <div v-for="key in fuelKeys" :key="key"
+            :class="['sheet-fuel-row', { available: (selectedStation.fuel[key] ?? 0) > 0, empty: (selectedStation.fuel[key] ?? 0) === 0 }]">
+            <span class="fuel-label">{{ FUEL_LABELS[key] }}</span>
+            <span class="fuel-val">{{ (selectedStation.fuel[key] ?? 0).toLocaleString('ru-RU') }} л</span>
+          </div>
+        </div>
+
+        <div class="sheet-comment">
+          <div class="comment-label">Последний комментарий</div>
+          <div class="comment-text">{{ selectedStation.lastComment }}</div>
+        </div>
+
+        <div class="sheet-history">
+          <div class="history-label">История</div>
+          <div v-for="(comment, idx) in selectedStation.comments" :key="idx" class="history-item">
+            <span class="history-time">{{ comment.time }}</span>
+            <span class="history-text">{{ comment.text }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </Transition>
 </template>
 
 <style scoped lang="scss">
@@ -163,13 +273,32 @@ const geolocate = () => {
   color: var(--gray-600);
 }
 
+:deep(.ymaps3--controls-default) {
+  @media (max-width: 767px) {
+    transform: scale(0.7);
+    transform-origin: top right;
+  }
+}
+
 .marker-wrapper {
   position: relative;
   cursor: pointer;
 }
 
-.marker-img {
-  display: block;
+.marker-circle {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  border: 2px solid white;
+
+  &.selected {
+    border-color: #2563EB;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.3);
+  }
 }
 
 .marker-popup {
@@ -210,6 +339,28 @@ const geolocate = () => {
   }
 }
 
+.popup-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: #f3f4f6;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280;
+  cursor: pointer;
+  z-index: 10;
+
+  &:hover {
+    background: #e5e7eb;
+    color: #111827;
+  }
+}
+
 .popup-header {
   display: flex;
   align-items: center;
@@ -218,7 +369,15 @@ const geolocate = () => {
 }
 
 .popup-icon {
-  font-size: 24px;
+  width: 48px;
+  height: 48px;
+  background: #f3f4f6;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
 }
 
 .popup-name {
@@ -230,35 +389,51 @@ const geolocate = () => {
 .popup-addr {
   font-size: 11px;
   color: #6b7280;
+  margin-bottom: 4px;
+}
+
+.popup-status {
+  font-size: 11px;
+  font-weight: 600;
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 100px;
+
+  &.available {
+    background: #F0FDF4;
+    color: #22C55E;
+  }
+
+  &.empty {
+    background: #FEF2F2;
+    color: #EF4444;
+  }
 }
 
 .popup-fuel {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-bottom: 10px;
-}
-
-.popup-fuel-item {
-  display: flex;
-  flex-direction: column;
   gap: 4px;
+  margin-top: 10px;
 }
 
-.popup-fuel-head {
+.popup-fuel-row {
   display: flex;
   justify-content: space-between;
   font-size: 12px;
-}
-
-.popup-no-fuel {
-  font-size: 12px;
-  color: #EF4444;
-  padding: 8px;
-  background: #FEF2F2;
+  padding: 4px 8px;
   border-radius: 6px;
-  text-align: center;
-  font-weight: 500;
+  background: #f9fafb;
+
+  &.available {
+    background: #F0FDF4;
+    border: 1px solid #bbf7d0;
+  }
+
+  &.empty {
+    background: #FEF2F2;
+    border: 1px solid #fecaca;
+  }
 }
 
 .fuel-label {
@@ -267,33 +442,221 @@ const geolocate = () => {
 }
 
 .fuel-val {
+  font-weight: 600;
   color: #6b7280;
   font-variant-numeric: tabular-nums;
 }
 
-.fuel-bar-track {
-  height: 5px;
+.popup-comment {
+  background: #f9fafb;
+  border-radius: 8px;
+  padding: 10px;
+  margin-top: 10px;
+}
+
+.comment-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #9ca3af;
+  margin-bottom: 4px;
+}
+
+.comment-text {
+  font-size: 12px;
+  font-weight: 500;
+  color: #374151;
+}
+
+.popup-history {
+  margin-top: 10px;
+}
+
+.history-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #9ca3af;
+  margin-bottom: 6px;
+}
+
+.history-list {
+  max-height: 100px;
+  overflow-y: auto;
+}
+
+.history-item {
+  display: flex;
+  gap: 8px;
+  font-size: 11px;
+  padding: 4px 0;
+  border-bottom: 1px solid #f3f4f6;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.history-time {
+  color: #9ca3af;
+  white-space: nowrap;
+  min-width: 50px;
+}
+
+.history-text {
+  color: #6b7280;
+}
+
+.mobile-sheet {
+  position: fixed;
+  bottom: 60px;
+  left: 0;
+  right: 0;
+  background: white;
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
+  z-index: 40;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.3s ease;
+}
+
+.sheet-handle {
+  padding: 12px 0 8px;
+  touch-action: none;
+  cursor: grab;
+}
+
+.handle-bar {
+  width: 40px;
+  height: 4px;
+  background: #e5e7eb;
+  border-radius: 2px;
+  margin: 0 auto;
+}
+
+.sheet-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px 12px;
+}
+
+.sheet-icon {
+  width: 44px;
+  height: 44px;
   background: #f3f4f6;
-  border-radius: 100px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
   overflow: hidden;
 }
 
-.fuel-bar-fill {
-  height: 100%;
-  border-radius: 100px;
-  transition: width 0.5s ease;
-  min-width: 2px;
+.sheet-info {
+  flex: 1;
+  min-width: 0;
 }
 
-.popup-delivery {
-  font-size: 11px;
-  color: #6b7280;
-  padding: 8px;
-  background: #eff6ff;
-  border-radius: 8px;
+.sheet-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: #111827;
+}
 
-  strong {
-    color: #1d4ed8;
+.sheet-addr {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.sheet-close {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: #f3f4f6;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280;
+  flex-shrink: 0;
+}
+
+.sheet-status {
+  margin: 0 16px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 100px;
+
+  &.available {
+    background: #F0FDF4;
+    color: #22C55E;
   }
+
+  &.empty {
+    background: #FEF2F2;
+    color: #EF4444;
+  }
+}
+
+.sheet-content {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  -webkit-overflow-scrolling: touch;
+}
+
+.sheet-fuel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 16px 12px;
+}
+
+.sheet-fuel-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #f9fafb;
+
+  &.available {
+    background: #F0FDF4;
+    border: 1px solid #bbf7d0;
+  }
+
+  &.empty {
+    background: #FEF2F2;
+    border: 1px solid #fecaca;
+  }
+}
+
+.sheet-comment {
+  margin: 0 16px 12px;
+  padding: 12px;
+  background: #f9fafb;
+  border-radius: 10px;
+}
+
+.sheet-history {
+  padding: 0 16px 16px;
+}
+
+.slide-up-enter-active,
+.slide-up-leave-active {
+  transition: all 0.3s ease;
+}
+
+.slide-up-enter-from,
+.slide-up-leave-to {
+  transform: translateY(100%);
 }
 </style>
