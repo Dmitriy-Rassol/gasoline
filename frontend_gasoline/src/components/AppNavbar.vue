@@ -1,5 +1,8 @@
 <script setup lang="ts">
-import { SlidersHorizontal, List } from '@lucide/vue'
+import { SlidersHorizontal, List, Sun, Moon } from '@lucide/vue'
+import { useTheme } from '../composables/useTheme'
+
+const { theme, toggle } = useTheme()
 
 defineProps<{
   showList: boolean
@@ -29,6 +32,10 @@ defineEmits<{
       <button :class="['icon-btn', { active: showFilters }]" title="Фильтры" @click="$emit('filter')">
         <SlidersHorizontal :size="18" />
       </button>
+      <button class="icon-btn" title="Тема" @click="toggle">
+        <Sun v-if="theme === 'dark'" :size="18" />
+        <Moon v-else :size="18" />
+      </button>
     </div>
   </header>
 
@@ -40,6 +47,11 @@ defineEmits<{
     <button :class="['nav-btn', { active: showFilters }]" @click="$emit('filter')">
       <SlidersHorizontal :size="20" />
       <span>Фильтр</span>
+    </button>
+    <button class="nav-btn" @click="toggle">
+      <Sun v-if="theme === 'dark'" :size="20" />
+      <Moon v-else :size="20" />
+      <span>Тема</span>
     </button>
   </nav>
 </template>

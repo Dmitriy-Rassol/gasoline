@@ -13,6 +13,7 @@ import { Fuel, X, MapPin } from '@lucide/vue'
 
 import type { GasStation, FuelType } from '../types/station'
 import { FUEL_LABELS } from '../types/station'
+import { useTheme } from '../composables/useTheme'
 
 import lukoilLogo from '../assets/lukoil.webp'
 import gazpromLogo from '../assets/gazprom.webp'
@@ -29,6 +30,8 @@ const brandLogos: Record<string, string> = {
 }
 
 const getBrandLogo = (brand: string) => brandLogos[brand] || ''
+
+const { theme } = useTheme()
 
 const props = defineProps<{
   stations: GasStation[]
@@ -141,8 +144,11 @@ defineExpose({ moveToStation, resetZoom })
       zoom: ZOOM,
     },
     showScaleInCopyrights: true,
+    theme: theme === 'dark' ? 'dark' : undefined,
   }" width="100%" height="100%">
-    <yandex-map-default-scheme-layer />
+    <yandex-map-default-scheme-layer :settings="{
+      theme: theme === 'dark' ? 'dark' : 'light',
+    }" />
     <yandex-map-default-features-layer />
 
     <yandex-map-controls :settings="{ position: 'right top', orientation: 'vertical' }">
@@ -307,7 +313,7 @@ defineExpose({ moveToStation, resetZoom })
   left: 50%;
   transform: translateX(-50%);
   width: 280px;
-  background: white;
+  background: var(--card-bg);
   border-radius: 14px;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
   padding: 14px;
@@ -324,7 +330,7 @@ defineExpose({ moveToStation, resetZoom })
     height: 0;
     border-left: 8px solid transparent;
     border-right: 8px solid transparent;
-    border-top: 8px solid white;
+    border-top: 8px solid var(--card-bg);
   }
 }
 
@@ -346,18 +352,18 @@ defineExpose({ moveToStation, resetZoom })
   width: 24px;
   height: 24px;
   border: none;
-  background: #f3f4f6;
+  background: var(--popup-close-bg);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #6b7280;
+  color: var(--gray-500);
   cursor: pointer;
   z-index: 10;
 
   &:hover {
-    background: #e5e7eb;
-    color: #111827;
+    background: var(--popup-close-hover);
+    color: var(--gray-900);
   }
 }
 
@@ -371,7 +377,7 @@ defineExpose({ moveToStation, resetZoom })
 .popup-icon {
   width: 48px;
   height: 48px;
-  background: #f3f4f6;
+  background: var(--popup-close-bg);
   border-radius: 12px;
   display: flex;
   align-items: center;
@@ -383,12 +389,12 @@ defineExpose({ moveToStation, resetZoom })
 .popup-name {
   font-size: 14px;
   font-weight: 700;
-  color: #111827;
+  color: var(--gray-900);
 }
 
 .popup-addr {
   font-size: 11px;
-  color: #6b7280;
+  color: var(--gray-500);
   margin-bottom: 4px;
 }
 
@@ -400,12 +406,12 @@ defineExpose({ moveToStation, resetZoom })
   border-radius: 100px;
 
   &.available {
-    background: #F0FDF4;
+    background: var(--badge-green-bg);
     color: #22C55E;
   }
 
   &.empty {
-    background: #FEF2F2;
+    background: var(--badge-red-bg);
     color: #EF4444;
   }
 }
@@ -423,32 +429,32 @@ defineExpose({ moveToStation, resetZoom })
   font-size: 12px;
   padding: 4px 8px;
   border-radius: 6px;
-  background: #f9fafb;
+  background: var(--fuel-row-bg);
 
   &.available {
-    background: #F0FDF4;
-    border: 1px solid #bbf7d0;
+    background: var(--badge-green-bg);
+    border: 1px solid var(--badge-green-border);
   }
 
   &.empty {
-    background: #FEF2F2;
-    border: 1px solid #fecaca;
+    background: var(--badge-red-bg);
+    border: 1px solid var(--badge-red-border);
   }
 }
 
 .fuel-label {
   font-weight: 600;
-  color: #374151;
+  color: var(--gray-700);
 }
 
 .fuel-val {
   font-weight: 600;
-  color: #6b7280;
+  color: var(--gray-500);
   font-variant-numeric: tabular-nums;
 }
 
 .popup-comment {
-  background: #f9fafb;
+  background: var(--comment-bg);
   border-radius: 8px;
   padding: 10px;
   margin-top: 10px;
@@ -458,14 +464,14 @@ defineExpose({ moveToStation, resetZoom })
   font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
-  color: #9ca3af;
+  color: var(--gray-400);
   margin-bottom: 4px;
 }
 
 .comment-text {
   font-size: 12px;
   font-weight: 500;
-  color: #374151;
+  color: var(--gray-700);
 }
 
 .popup-history {
@@ -476,7 +482,7 @@ defineExpose({ moveToStation, resetZoom })
   font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
-  color: #9ca3af;
+  color: var(--gray-400);
   margin-bottom: 6px;
 }
 
@@ -490,7 +496,7 @@ defineExpose({ moveToStation, resetZoom })
   gap: 8px;
   font-size: 11px;
   padding: 4px 0;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid var(--gray-100);
 
   &:last-child {
     border-bottom: none;
@@ -498,13 +504,13 @@ defineExpose({ moveToStation, resetZoom })
 }
 
 .history-time {
-  color: #9ca3af;
+  color: var(--gray-400);
   white-space: nowrap;
   min-width: 50px;
 }
 
 .history-text {
-  color: #6b7280;
+  color: var(--gray-500);
 }
 
 .mobile-sheet {
@@ -512,7 +518,7 @@ defineExpose({ moveToStation, resetZoom })
   bottom: 60px;
   left: 0;
   right: 0;
-  background: white;
+  background: var(--white);
   border-radius: 20px 20px 0 0;
   box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
   z-index: 40;
@@ -531,7 +537,7 @@ defineExpose({ moveToStation, resetZoom })
 .handle-bar {
   width: 40px;
   height: 4px;
-  background: #e5e7eb;
+  background: var(--gray-300);
   border-radius: 2px;
   margin: 0 auto;
 }
@@ -546,7 +552,7 @@ defineExpose({ moveToStation, resetZoom })
 .sheet-icon {
   width: 44px;
   height: 44px;
-  background: #f3f4f6;
+  background: var(--popup-close-bg);
   border-radius: 10px;
   display: flex;
   align-items: center;
@@ -563,7 +569,7 @@ defineExpose({ moveToStation, resetZoom })
 .sheet-name {
   font-size: 15px;
   font-weight: 700;
-  color: #111827;
+  color: var(--gray-900);
 }
 
 .sheet-addr {
@@ -571,19 +577,19 @@ defineExpose({ moveToStation, resetZoom })
   align-items: center;
   gap: 3px;
   font-size: 12px;
-  color: #6b7280;
+  color: var(--gray-500);
 }
 
 .sheet-close {
   width: 32px;
   height: 32px;
   border: none;
-  background: #f3f4f6;
+  background: var(--popup-close-bg);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #6b7280;
+  color: var(--gray-500);
   flex-shrink: 0;
 }
 
@@ -596,12 +602,12 @@ defineExpose({ moveToStation, resetZoom })
   border-radius: 100px;
 
   &.available {
-    background: #F0FDF4;
+    background: var(--badge-green-bg);
     color: #22C55E;
   }
 
   &.empty {
-    background: #FEF2F2;
+    background: var(--badge-red-bg);
     color: #EF4444;
   }
 }
@@ -626,23 +632,23 @@ defineExpose({ moveToStation, resetZoom })
   font-size: 13px;
   padding: 8px 12px;
   border-radius: 8px;
-  background: #f9fafb;
+  background: var(--fuel-row-bg);
 
   &.available {
-    background: #F0FDF4;
-    border: 1px solid #bbf7d0;
+    background: var(--badge-green-bg);
+    border: 1px solid var(--badge-green-border);
   }
 
   &.empty {
-    background: #FEF2F2;
-    border: 1px solid #fecaca;
+    background: var(--badge-red-bg);
+    border: 1px solid var(--badge-red-border);
   }
 }
 
 .sheet-comment {
   margin: 0 16px 12px;
   padding: 12px;
-  background: #f9fafb;
+  background: var(--comment-bg);
   border-radius: 10px;
 }
 

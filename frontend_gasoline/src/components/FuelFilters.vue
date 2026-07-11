@@ -259,6 +259,10 @@ const sheetStyle = computed(() => {
   flex-direction: column;
   animation: slideRight 0.25s ease;
 
+  [data-theme="dark"] & {
+    background: rgba(30, 41, 59, 0.98);
+  }
+
   @media (min-width: 768px) {
     width: 340px;
   }
@@ -378,16 +382,16 @@ const sheetStyle = computed(() => {
 .reset-btn {
   width: 100%;
   padding: 10px;
-  border: 1px solid #FECACA;
+  border: 1px solid var(--badge-red-border);
   border-radius: 10px;
-  background: #FEF2F2;
+  background: var(--badge-red-bg);
   font-size: 13px;
   font-weight: 600;
   color: #EF4444;
   transition: all var(--transition);
 
   &:hover {
-    background: #FEE2E2;
+    opacity: 0.8;
   }
 }
 
@@ -397,7 +401,7 @@ const sheetStyle = computed(() => {
   bottom: 60px;
   left: 0;
   right: 0;
-  background: white;
+  background: var(--white);
   border-radius: 20px 20px 0 0;
   box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
   z-index: 45;
@@ -416,7 +420,7 @@ const sheetStyle = computed(() => {
 .handle-bar {
   width: 40px;
   height: 4px;
-  background: #e5e7eb;
+  background: var(--gray-300);
   border-radius: 2px;
   margin: 0 auto;
 }
@@ -424,7 +428,7 @@ const sheetStyle = computed(() => {
 .mobile-sticky {
   position: sticky;
   top: 0;
-  background: white;
+  background: var(--white);
   z-index: 1;
   padding-bottom: 8px;
   border-bottom: 1px solid var(--gray-100);
@@ -460,9 +464,9 @@ const sheetStyle = computed(() => {
   width: calc(100% - 32px);
   margin: 0 16px;
   padding: 10px;
-  border: 1px solid #FECACA;
+  border: 1px solid var(--badge-red-border);
   border-radius: 10px;
-  background: #FEF2F2;
+  background: var(--badge-red-bg);
   font-size: 13px;
   font-weight: 600;
   color: #EF4444;

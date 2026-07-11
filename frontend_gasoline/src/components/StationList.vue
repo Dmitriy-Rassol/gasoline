@@ -160,6 +160,10 @@ const listStyle = computed(() => {
   flex-direction: column;
   animation: slideIn 0.25s ease;
 
+  [data-theme="dark"] & {
+    background: rgba(30, 41, 59, 0.98);
+  }
+
   @media (min-width: 768px) {
     width: 340px;
   }
@@ -364,16 +368,16 @@ const listStyle = computed(() => {
   font-weight: 600;
   padding: 3px 8px;
   border-radius: 6px;
-  background: #FEF2F2;
+  background: var(--badge-red-bg);
   color: #EF4444;
 
   &.available {
-    background: #F0FDF4;
+    background: var(--badge-green-bg);
     color: #22C55E;
   }
 
   &.no-fuel {
-    background: #FEF2F2;
+    background: var(--badge-red-bg);
     color: #EF4444;
   }
 }
