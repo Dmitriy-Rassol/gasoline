@@ -96,6 +96,11 @@ const closeCard = () => {
   selectedStation.value = null
 }
 
+const onMapClick = () => {
+  showList.value = false
+  showFilters.value = false
+}
+
 const toggleList = () => {
   selectedStation.value = null
   showFilters.value = false
@@ -149,6 +154,7 @@ const toggleFilters = () => {
         :is-mobile="isMobile"
         @select="selectStation"
         @deselect="closeCard"
+        @map-click="onMapClick"
       />
     </div>
   </div>

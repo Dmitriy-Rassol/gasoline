@@ -27,27 +27,38 @@ const filtered = computed(() => {
   )
 })
 
+const sheetContent = ref<HTMLElement | null>(null)
 const touchStartY = ref(0)
 const touchDeltaY = ref(0)
 const isDragging = ref(false)
 const isClosing = ref(false)
+const canDrag = ref(false)
 
 const isFuelAvailable = (station: GasStation, key: FuelType) => {
   return (station.fuel[key] ?? 0) > 0
 }
 
 const onTouchStart = (e: TouchEvent) => {
+  const el = sheetContent.value
+  canDrag.value = !el || el.scrollTop <= 0
   touchStartY.value = e.touches[0].clientY
   touchDeltaY.value = 0
-  isDragging.value = true
+  isDragging.value = false
 }
 
 const onTouchMove = (e: TouchEvent) => {
-  if (!isDragging.value) return
-  touchDeltaY.value = Math.max(0, e.touches[0].clientY - touchStartY.value)
+  const dy = e.touches[0].clientY - touchStartY.value
+  if (!canDrag.value) return
+  if (!isDragging.value && dy > 0) {
+    isDragging.value = true
+  }
+  if (isDragging.value) {
+    touchDeltaY.value = Math.max(0, dy)
+  }
 }
 
 const onTouchEnd = () => {
+  if (!isDragging.value) return
   isDragging.value = false
   if (touchDeltaY.value > 100) {
     isClosing.value = true
@@ -81,16 +92,15 @@ const listStyle = computed(() => {
 </script>
 
 <template>
-  <aside :class="['sidebar', { 'sidebar--mobile': isMobile }]" :style="listStyle">
-    <div
-      class="sidebar-header"
-      @touchstart.passive="onTouchStart"
-      @touchmove.passive="onTouchMove"
-      @touchend="onTouchEnd"
-    >
+  <aside :class="['sidebar', { 'sidebar--mobile': isMobile }]" :style="listStyle"
+    @touchstart.passive="onTouchStart"
+    @touchmove.passive="onTouchMove"
+    @touchend="onTouchEnd"
+  >
+    <div class="sidebar-header">
       <div v-if="isMobile" class="mobile-handle"></div>
       <h2 class="sidebar-title">АЗС Череповца</h2>
-      <button class="close-btn" @click="emit('close')">
+      <button v-if="!isMobile" class="close-btn" @click="emit('close')">
         <X :size="18" />
       </button>
     </div>
@@ -105,7 +115,7 @@ const listStyle = computed(() => {
       />
     </div>
 
-    <div class="sidebar-list">
+    <div ref="sheetContent" class="sidebar-list">
       <button
         v-for="station in filtered"
         :key="station.id"

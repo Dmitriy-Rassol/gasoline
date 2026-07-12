@@ -42,6 +42,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'select', station: GasStation): void
   (e: 'deselect'): void
+  (e: 'mapClick'): void
 }>()
 
 const selectedStation = computed(() => {
@@ -74,6 +75,7 @@ const selectStation = (station: GasStation) => {
 const deselectAll = () => {
   if (markerJustClicked) return
   emit('deselect')
+  emit('mapClick')
 }
 
 const moveToStation = (station: GasStation) => {
@@ -87,23 +89,34 @@ const resetZoom = () => {
   map.value.setLocation({ center: CENTER, zoom: ZOOM, duration: 500 })
 }
 
+const sheetContent = ref<HTMLElement | null>(null)
 const touchStartY = ref(0)
 const touchDeltaY = ref(0)
 const isDragging = ref(false)
 const isClosing = ref(false)
+const canDrag = ref(false)
 
 const onTouchStart = (e: TouchEvent) => {
+  const el = sheetContent.value
+  canDrag.value = !el || el.scrollTop <= 0
   touchStartY.value = e.touches[0].clientY
   touchDeltaY.value = 0
-  isDragging.value = true
+  isDragging.value = false
 }
 
 const onTouchMove = (e: TouchEvent) => {
-  if (!isDragging.value) return
-  touchDeltaY.value = Math.max(0, e.touches[0].clientY - touchStartY.value)
+  const dy = e.touches[0].clientY - touchStartY.value
+  if (!canDrag.value) return
+  if (!isDragging.value && dy > 0) {
+    isDragging.value = true
+  }
+  if (isDragging.value) {
+    touchDeltaY.value = Math.max(0, dy)
+  }
 }
 
 const onTouchEnd = () => {
+  if (!isDragging.value) return
   isDragging.value = false
   if (touchDeltaY.value > 100) {
     isClosing.value = true
@@ -190,9 +203,8 @@ defineExpose({ moveToStation, resetZoom })
               :class="['popup-fuel-row', { available: (station.fuel[key] ?? 0) > 0, empty: (station.fuel[key] ?? 0) === 0 }]">
               <span class="fuel-label">{{ FUEL_LABELS[key] }}</span>
               <span class="fuel-val">{{ (station.fuel[key] ?? 0).toLocaleString('ru-RU') }} л</span>
+              <span class="fuel-val">~{{ ((station.fuel[key] ?? 0) / 20).toLocaleString('ru-RU') }} машин</span>
             </div>
-          </div>
-          <div class="popup-comment">
             <div class="comment-label">Последний комментарий</div>
             <div class="comment-text">{{ station.lastComment }}</div>
           </div>
@@ -211,13 +223,12 @@ defineExpose({ moveToStation, resetZoom })
   </yandex-map>
 
   <Transition name="slide-up">
-    <div v-if="selectedStation && isMobile" class="mobile-sheet" :style="sheetStyle">
-      <div
-        class="sheet-handle"
-        @touchstart.passive="onTouchStart"
-        @touchmove.passive="onTouchMove"
-        @touchend="onTouchEnd"
-      >
+    <div v-if="selectedStation && isMobile" class="mobile-sheet" :style="sheetStyle"
+      @touchstart.passive="onTouchStart"
+      @touchmove.passive="onTouchMove"
+      @touchend="onTouchEnd"
+    >
+      <div class="sheet-handle">
         <div class="handle-bar"></div>
       </div>
       <div class="sheet-header">
@@ -234,21 +245,19 @@ defineExpose({ moveToStation, resetZoom })
             {{ selectedStation.address }}
           </div>
         </div>
-        <button class="sheet-close" @click="emit('deselect')">
-          <X :size="18" />
-        </button>
       </div>
 
       <div :class="['sheet-status', { available: selectedStation.hasFuel, empty: !selectedStation.hasFuel }]">
         {{ selectedStation.hasFuel ? 'Есть топливо' : 'Нет топлива' }}
       </div>
 
-      <div class="sheet-content">
+      <div ref="sheetContent" class="sheet-content">
         <div class="sheet-fuel">
           <div v-for="key in fuelKeys" :key="key"
             :class="['sheet-fuel-row', { available: (selectedStation.fuel[key] ?? 0) > 0, empty: (selectedStation.fuel[key] ?? 0) === 0 }]">
             <span class="fuel-label">{{ FUEL_LABELS[key] }}</span>
-            <span class="fuel-val">{{ (selectedStation.fuel[key] ?? 0).toLocaleString('ru-RU') }} л</span>
+            <span class="fuel-val">{{ (selectedStation.fuel[key] ?? 0).toLocaleString('ru-RU') }} л</span>.
+            <span class="fuel-val">~{{ ((selectedStation.fuel[key] ?? 0) / 20).toLocaleString('ru-RU') }} машин</span>
           </div>
         </div>
 
@@ -445,12 +454,17 @@ defineExpose({ moveToStation, resetZoom })
 .fuel-label {
   font-weight: 600;
   color: var(--gray-700);
+  margin-right: auto;
 }
 
 .fuel-val {
   font-weight: 600;
   color: var(--gray-500);
   font-variant-numeric: tabular-nums;
+
+  & + & {
+    margin-left: 8px;
+  }
 }
 
 .popup-comment {

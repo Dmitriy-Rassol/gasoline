@@ -34,23 +34,34 @@ const brands = [
 
 const isActive = (type: FuelType) => props.activeFilters.includes(type)
 
+const sheetContent = ref<HTMLElement | null>(null)
 const touchStartY = ref(0)
 const touchDeltaY = ref(0)
 const isDragging = ref(false)
 const isClosing = ref(false)
+const canDrag = ref(false)
 
 const onTouchStart = (e: TouchEvent) => {
+  const el = sheetContent.value
+  canDrag.value = !el || el.scrollTop <= 0
   touchStartY.value = e.touches[0].clientY
   touchDeltaY.value = 0
-  isDragging.value = true
+  isDragging.value = false
 }
 
 const onTouchMove = (e: TouchEvent) => {
-  if (!isDragging.value) return
-  touchDeltaY.value = Math.max(0, e.touches[0].clientY - touchStartY.value)
+  const dy = e.touches[0].clientY - touchStartY.value
+  if (!canDrag.value) return
+  if (!isDragging.value && dy > 0) {
+    isDragging.value = true
+  }
+  if (isDragging.value) {
+    touchDeltaY.value = Math.max(0, dy)
+  }
 }
 
 const onTouchEnd = () => {
+  if (!isDragging.value) return
   isDragging.value = false
   if (touchDeltaY.value > 80) {
     isClosing.value = true
@@ -160,20 +171,19 @@ const sheetStyle = computed(() => {
 
   <!-- Mobile bottom sheet -->
   <Transition name="slide-up">
-    <div v-if="visible && isMobile" class="mobile-filters" :style="sheetStyle">
-      <div
-        class="mobile-handle"
-        @touchstart.passive="onTouchStart"
-        @touchmove.passive="onTouchMove"
-        @touchend="onTouchEnd"
-      >
+    <div v-if="visible && isMobile" class="mobile-filters" :style="sheetStyle"
+      @touchstart.passive="onTouchStart"
+      @touchmove.passive="onTouchMove"
+      @touchend="onTouchEnd"
+    >
+      <div class="mobile-handle">
         <div class="handle-bar"></div>
       </div>
 
       <div class="mobile-sticky">
         <div class="mobile-header">
           <h3 class="mobile-title">Фильтры</h3>
-          <button class="mobile-close" @click="emit('close')">
+          <button v-if="!isMobile" class="mobile-close" @click="emit('close')">
             <X :size="20" />
           </button>
         </div>
@@ -185,7 +195,7 @@ const sheetStyle = computed(() => {
         </button>
       </div>
 
-      <div class="mobile-content">
+      <div ref="sheetContent" class="mobile-content">
         <div class="mobile-section">
           <div class="section-label">Бренд</div>
           <div class="mobile-pills">
