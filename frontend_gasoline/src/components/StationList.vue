@@ -8,6 +8,7 @@ const props = defineProps<{
   stations: GasStation[]
   selectedId: number | null
   isMobile: boolean
+  visible: boolean
 }>()
 
 const emit = defineEmits<{
@@ -92,7 +93,7 @@ const listStyle = computed(() => {
 </script>
 
 <template>
-  <aside :class="['sidebar', { 'sidebar--mobile': isMobile }]" :style="listStyle"
+  <aside v-if="visible" :class="['sidebar', { 'sidebar--mobile': isMobile }]" :style="listStyle"
     @touchstart.passive="onTouchStart"
     @touchmove.passive="onTouchMove"
     @touchend="onTouchEnd"

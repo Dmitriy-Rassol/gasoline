@@ -203,7 +203,7 @@ defineExpose({ moveToStation, resetZoom })
               :class="['popup-fuel-row', { available: (station.fuel[key] ?? 0) > 0, empty: (station.fuel[key] ?? 0) === 0 }]">
               <span class="fuel-label">{{ FUEL_LABELS[key] }}</span>
               <span class="fuel-val">{{ (station.fuel[key] ?? 0).toLocaleString('ru-RU') }} л</span>
-              <span class="fuel-val">~{{ ((station.fuel[key] ?? 0) / 20).toLocaleString('ru-RU') }} машин</span>
+              <span class="fuel-val" v-if="station.fuel[key]">~ {{ ((station.fuel[key] ?? 0) / 20).toLocaleString('ru-RU') }} машин</span>
             </div>
             <div class="comment-label">Последний комментарий</div>
             <div class="comment-text">{{ station.lastComment }}</div>
@@ -257,7 +257,7 @@ defineExpose({ moveToStation, resetZoom })
             :class="['sheet-fuel-row', { available: (selectedStation.fuel[key] ?? 0) > 0, empty: (selectedStation.fuel[key] ?? 0) === 0 }]">
             <span class="fuel-label">{{ FUEL_LABELS[key] }}</span>
             <span class="fuel-val">{{ (selectedStation.fuel[key] ?? 0).toLocaleString('ru-RU') }} л</span>.
-            <span class="fuel-val">~{{ ((selectedStation.fuel[key] ?? 0) / 20).toLocaleString('ru-RU') }} машин</span>
+            <span class="fuel-val" v-if="selectedStation.fuel[key]">~ {{ ((selectedStation.fuel[key] ?? 0) / 20).toLocaleString('ru-RU') }} машин</span>
           </div>
         </div>
 

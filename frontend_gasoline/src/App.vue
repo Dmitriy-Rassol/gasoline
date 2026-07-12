@@ -125,14 +125,17 @@ const toggleFilters = () => {
     />
 
     <div :class="['map-area', { 'map-area--mobile': isMobile }]">
-      <StationList
-        v-if="showList"
-        :stations="filteredStations"
-        :selected-id="selectedStation?.id ?? null"
-        :is-mobile="isMobile"
-        @select="selectStationFromList"
-        @close="showList = false"
-      />
+      <Transition name="slide-up">
+        <StationList
+          v-if="showList"
+          :stations="filteredStations"
+          :selected-id="selectedStation?.id ?? null"
+          :is-mobile="isMobile"
+          :visible="showList"
+          @select="selectStationFromList"
+          @close="showList = false"
+        />
+      </Transition>
 
       <FuelFilters
         :visible="showFilters"
@@ -178,5 +181,15 @@ const toggleFilters = () => {
   &--mobile {
     padding-bottom: 60px;
   }
+}
+
+.slide-up-enter-active,
+.slide-up-leave-active {
+  transition: all 0.3s ease;
+}
+
+.slide-up-enter-from,
+.slide-up-leave-to {
+  transform: translateY(100%);
 }
 </style>
