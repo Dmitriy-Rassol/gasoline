@@ -97,6 +97,7 @@ const closeCard = () => {
 }
 
 const onMapClick = () => {
+  if (!isMobile.value) return
   showList.value = false
   showFilters.value = false
 }
@@ -125,7 +126,7 @@ const toggleFilters = () => {
     />
 
     <div :class="['map-area', { 'map-area--mobile': isMobile }]">
-      <Transition name="slide-up">
+      <Transition :name="isMobile ? 'slide-up' : 'slide-right'">
         <StationList
           v-if="showList"
           :stations="filteredStations"
@@ -191,5 +192,15 @@ const toggleFilters = () => {
 .slide-up-enter-from,
 .slide-up-leave-to {
   transform: translateY(100%);
+}
+
+.slide-right-enter-active,
+.slide-right-leave-active {
+  transition: all 0.25s ease;
+}
+
+.slide-right-enter-from,
+.slide-right-leave-to {
+  transform: translateX(-100%);
 }
 </style>
